@@ -14,7 +14,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies
+      - name: Install system packages
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -31,10 +31,10 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install buildozer cython
 
-      - name: Install Android SDK tools
+      - name: Build APK
         run: |
           . .venv/bin/activate
-          buildozer android debug
+          yes | buildozer android debug
           
           
         
