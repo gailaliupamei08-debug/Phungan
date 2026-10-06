@@ -1,156 +1,202 @@
 from kivy.app import App
-from kivy.uix.widget import Widget
-from kivy.uix.popup import Popup
+from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
-from kivy.graphics import Color, Ellipse, Line
-from kivy.clock import Clock
-from math import sin, cos, radians, hypot
+from kivy.uix.textinput import TextInput
+from kivy.uix.button import Button
+from kivy.core.window import Window
 from random import randint
 
 
-class Galaxy(Widget):
+class MathGame(BoxLayout):
+
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-
-        self.angle = 0
-        self.zoom = 1.0
-        self.move_x = 0
-        self.move_y = 0
-        self.touches = {}
-        self.old_distance = None
-        self.stars = [
-            (randint(-600, 600), randint(-1000, 1000), randint(2, 5))
-            for _ in range(140)
-        ]
-
-        Clock.schedule_interval(self.update, 1 / 30)
-
-    def screen_pos(self, x, y):
-        return (
-            self.width / 2 + (x + self.move_x) * self.zoom,
-            self.height / 2 + (y + self.move_y) * self.zoom
+        super().__init__(
+            orientation="vertical",
+            padding=30,
+            spacing=20,
+            **kwargs
         )
 
-    def update(self, dt):
-        self.canvas.clear()
+        self.score = 0
+        self.streak = 0
+        self.question_number = 0
+        self.correct = 0
+        self.answer = 0
 
-        with self.canvas:
-            # Stars
-            Color(1, 1, 1, 1)
-            for x, y, size in self.stars:
-                sx, sy = self.screen_pos(x, y)
-                Ellipse(pos=(sx, sy), size=(size, size))
+        self.title = Label(
+            text="🧠 PHUNGAN MATHS GAME",
+            font_size="28sp",
+            bold=True
+        )
 
-            cx, cy = self.screen_pos(0, 0)
+        self.stats = Label(
+            text="⭐ Score: 0     🔥 Streak: 0",
+            font_size="20sp"
+        )
 
-            # Sun
-            sun_size = 90 * self.zoom
-            Color(1, 0.55, 0.05, 1)
-            Ellipse(
-                pos=(cx - sun_size / 2, cy - sun_size / 2),
-                size=(sun_size, sun_size)
+        self.question = Label(
+            text="",
+            font_size="40sp",
+            bold=True
+        )
+
+        self.input_box = TextInput(
+            hint_text="Enter your answer",
+            input_filter="int",
+            multiline=False,
+            font_size="25sp",
+            halign="center"
+        )
+
+        self.answer_button = Button(
+            text="ANSWER",
+            font_size="22sp",
+            size_hint_y=None,
+            height=60
+        )
+
+        self.restart_button = Button(
+            text="RESTART",
+            font_size="20sp",
+            size_hint_y=None,
+            height=55
+        )
+
+        self.message = Label(
+            text="",
+            font_size="20sp"
+        )
+
+        self.add_widget(self.title)
+        self.add_widget(self.stats)
+        self.add_widget(self.question)
+        self.add_widget(self.input_box)
+        self.add_widget(self.answer_button)
+        self.add_widget(self.restart_button)
+        self.add_widget(self.message)
+
+        self.answer_button.bind(on_press=self.check_answer)
+        self.restart_button.bind(on_press=self.restart)
+
+        self.new_question()
+
+    def new_question(self):
+
+        if self.question_number >= 10:
+            self.game_over()
+            return
+
+        self.question_number += 1
+
+        a = randint(1, 20)
+        b = randint(1, 20)
+
+        operation = randint(1, 4)
+
+        if operation == 1:
+            self.question.text = f"{a} + {b} = ?"
+            self.answer = a + b
+
+        elif operation == 2:
+
+            if a < b:
+                a, b = b, a
+
+            self.question.text = f"{a} - {b} = ?"
+            self.answer = a - b
+
+        elif operation == 3:
+
+            a = randint(2, 12)
+            b = randint(2, 12)
+
+            self.question.text = f"{a} × {b} = ?"
+            self.answer = a * b
+
+        else:
+
+            b = randint(2, 10)
+            answer = randint(2, 10)
+            a = b * answer
+
+            self.question.text = f"{a} ÷ {b} = ?"
+            self.answer = answer
+
+        self.input_box.text = ""
+        self.input_box.focus = True
+
+        self.stats.text = (
+            f"⭐ Score: {self.score}     "
+            f"🔥 Streak: {self.streak}\n"
+            f"Question {self.question_number}/10"
+        )
+
+    def check_answer(self, instance):
+
+        if not self.input_box.text:
+            self.message.text = "⚠️ Enter an answer!"
+            return
+
+        user_answer = int(self.input_box.text)
+
+        if user_answer == self.answer:
+
+            self.streak += 1
+            self.correct += 1
+
+            points = 10 + (self.streak * 2)
+            self.score += points
+
+            self.message.text = "✅ CORRECT! 🎉"
+
+        else:
+
+            self.streak = 0
+
+            self.message.text = (
+                f"❌ Wrong! Answer: {self.answer}"
             )
 
-            # Orbits
-            Color(0.25, 0.25, 0.25, 1)
-            for orbit in (100, 160, 220, 290, 370):
-                Line(circle=(cx, cy, orbit * self.zoom), width=1)
+        self.new_question()
 
-            # Mercury
-            a = radians(self.angle * 1.5)
-            self.draw_planet(cx + cos(a) * 100 * self.zoom,
-                             cy + sin(a) * 100 * self.zoom,
-                             16 * self.zoom, (0.65, 0.65, 0.65))
+    def game_over(self):
 
-            # Earth
-            a = radians(self.angle)
-            self.draw_planet(cx + cos(a) * 160 * self.zoom,
-                             cy + sin(a) * 160 * self.zoom,
-                             30 * self.zoom, (0.1, 0.4, 1))
+        self.question.text = "🎉 GAME OVER!"
 
-            # Mars
-            a = radians(self.angle * 0.7)
-            self.draw_planet(cx + cos(a) * 220 * self.zoom,
-                             cy + sin(a) * 220 * self.zoom,
-                             24 * self.zoom, (0.9, 0.2, 0.1))
+        self.message.text = (
+            f"You got {self.correct}/10 correct!\n"
+            f"⭐ Final Score: {self.score}"
+        )
 
-            # Jupiter
-            a = radians(self.angle * 0.35)
-            self.draw_planet(cx + cos(a) * 290 * self.zoom,
-                             cy + sin(a) * 290 * self.zoom,
-                             50 * self.zoom, (0.8, 0.55, 0.3))
+        self.answer_button.disabled = True
+        self.input_box.disabled = True
 
-            # Saturn
-            a = radians(self.angle * 0.22)
-            sx = cx + cos(a) * 370 * self.zoom
-            sy = cy + sin(a) * 370 * self.zoom
-            self.draw_planet(sx, sy, 44 * self.zoom, (0.85, 0.7, 0.45))
-            Color(0.8, 0.7, 0.5, 1)
-            Line(
-                ellipse=(sx - 38 * self.zoom, sy - 12 * self.zoom,
-                         76 * self.zoom, 24 * self.zoom),
-                width=3
-            )
+    def restart(self, instance):
 
-        self.angle = (self.angle + 1) % 360
+        self.score = 0
+        self.streak = 0
+        self.question_number = 0
+        self.correct = 0
 
-    def draw_planet(self, x, y, size, color):
-        Color(*color, 1)
-        Ellipse(pos=(x - size / 2, y - size / 2),
-                size=(size, size))
+        self.answer_button.disabled = False
+        self.input_box.disabled = False
 
-    def on_touch_down(self, touch):
-        self.touches[touch.uid] = touch.pos
+        self.message.text = ""
 
-        if len(self.touches) == 2:
-            points = list(self.touches.values())
-            self.old_distance = hypot(
-                points[0][0] - points[1][0],
-                points[0][1] - points[1][1]
-            )
-
-        return True
-
-    def on_touch_move(self, touch):
-        old = self.touches.get(touch.uid, touch.pos)
-
-        # Two fingers = zoom
-        if len(self.touches) >= 2:
-            self.touches[touch.uid] = touch.pos
-            points = list(self.touches.values())[:2]
-            distance = hypot(
-                points[0][0] - points[1][0],
-                points[0][1] - points[1][1]
-            )
-
-            if self.old_distance and self.old_distance > 0:
-                self.zoom *= distance / self.old_distance
-                self.zoom = max(0.5, min(self.zoom, 3.0))
-
-            self.old_distance = distance
-            return True
-
-        # One finger = move
-        dx = touch.x - old[0]
-        dy = touch.y - old[1]
-        self.move_x += dx / self.zoom
-        self.move_y += dy / self.zoom
-        self.touches[touch.uid] = touch.pos
-        return True
-
-    def on_touch_up(self, touch):
-        if touch.uid in self.touches:
-            del self.touches[touch.uid]
-
-        if len(self.touches) < 2:
-            self.old_distance = None
-
-        return True
+        self.new_question()
 
 
-class GalaxyApp(App):
+class PhunganMathsApp(App):
+
     def build(self):
-        return Galaxy()
+        Window.clearcolor = (0.03, 0.03, 0.06, 1)
+        return MathGame()
 
 
-GalaxyApp().run()
+PhunganMathsApp().run()
+
+
+
+                                         16 * self.zoom, (0.65, 0.65, 0.65))
+
+            
