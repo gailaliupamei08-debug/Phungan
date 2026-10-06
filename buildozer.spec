@@ -1,5 +1,5 @@
 [app]
-title = Phungan
+title = Phungan maths
 package.name = phungan
 package.domain = org.phungan
 source.dir = .
