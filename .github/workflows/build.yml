@@ -31,15 +31,20 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install buildozer cython
 
-      - name: Build APK
+      - name: Prepare Android SDK
         run: |
           . .venv/bin/activate
-          buildozer android debug 2>&1 | tee build.log
-          exit ${PIPESTATUS[0]}
+          rm -rf ~/.buildozer
+          mkdir -p ~/.buildozer/android/platform
+          buildozer android debug
+        env:
+          BUILDOZER_WARN_ON_ROOT: "1"
 
-      - name: Save build log
-        if: always()
+      - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: Phungan-build-log
-          path: build.log
+          name: Phungan-Maths-APK
+          path: bin/*.apk
+
+     
